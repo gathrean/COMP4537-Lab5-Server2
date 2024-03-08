@@ -1,11 +1,7 @@
 const http = require('http');
 const url = require('url');
-const sqlite3 = require('sqlite3').verbose();
-
-// npm install mysql
 const mysql = require('mysql');
 
-// Create connection
 const con = mysql.createConnection({
     host: "localhost",
     user: "root",
@@ -13,20 +9,14 @@ const con = mysql.createConnection({
     database: "lab5"
 });
 
-// Connect to MySQL to run SQL query
 con.connect(function (err) {
     if (err) throw err;
-    let sql = "INSERT INTO patient(patientID, name, dateOfBirth) VALUES (1, 'Elon Musk', '1901-01-01')"
-    con.query(sql, function (err, result) {
-        if (err) throw err;
-        console.log("1 record inserted");
-    });
+    console.log("Connected to MySQL database");
 });
 
 class DBResponder {
     constructor() {
         this.setupServer();
-        this.setupDatabase();
     }
 
     setupServer() {
@@ -63,13 +53,6 @@ class DBResponder {
         });
     }
 
-    setupDatabase() {
-        this.db = new sqlite3.Database(':memory:'); // In-memory database for simplicity
-        this.db.serialize(() => {
-            this.db.run('CREATE TABLE IF NOT EXISTS users (name TEXT, dob TEXT)');
-        });
-    }
-
     handleInsert(req, res) {
         let data = '';
 
@@ -100,15 +83,17 @@ class DBResponder {
         });
     }
 
-    handleQuery(req, res) {
-        const query = req.query.query;
+    handleQuery(req, res, queryParam) {
+        const query = queryParam;
 
-        this.db.all(query, (err, rows) => {
+        con.query(query, (err, rows) => {
             if (err) {
                 console.error(err);
-                res.status(500).send('Internal Server Error');
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end('Internal Server Error');
             } else {
-                res.status(200).json(rows);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(rows));
             }
         });
     }
