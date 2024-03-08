@@ -44,7 +44,7 @@ class DBResponder {
             const path = parsedUrl.pathname;
 
             // CORS headers
-            res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5500');
+            res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
             res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -56,11 +56,14 @@ class DBResponder {
                 return;
             }
 
-            // Route requests
             if (path === '/insert' && req.method === 'POST') {
                 this.handleInsert(req, res);
-            } else if (path === '/query' && req.method === 'GET') {
-                this.handleQuery(req, res, parsedUrl.query.query);
+            } else if (path === '/query') {
+                if (req.method === 'GET') {
+                    this.handleQuery(req, res, parsedUrl.query.query);
+                } else if (req.method === 'POST') {
+                    this.handlePostQuery(req, res);
+                }
             } else {
                 res.writeHead(404);
                 res.end('Not Found');
@@ -121,20 +124,58 @@ class DBResponder {
         });
     }
 
-    handleQuery(req, res, queryParam) {
-        const query = queryParam;
+    handlePostQuery(req, res) {
+        let body = '';
 
-        this.database.query(query, (err, rows) => {
-            if (err) {
-                console.error(err);
-                res.writeHead(500, { 'Content-Type': 'text/plain' });
-                res.end('Internal Server Error');
-            } else {
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify(rows));
+        req.on('data', chunk => {
+            body += chunk.toString(); // Convert Buffer to string
+        });
+
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const query = data.query.trim().toUpperCase(); // Normalize the query
+
+                // Validate the query type for SELECT and INSERT
+                if (!query.startsWith("SELECT") && !query.startsWith("INSERT")) {
+                    console.error("Invalid query type");
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Only SELECT and INSERT queries are allowed' }));
+                    return;
+                }
+
+                this.database.query(query, (err, result) => {
+                    if (err) {
+                        console.error(err);
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: false, error: 'Error executing query' }));
+                    } else {
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true, data: result }));
+                    }
+                });
+            } catch (error) {
+                console.error(error);
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Invalid request body' }));
             }
         });
     }
+
+
+    handleQuery(req, res, queryParam) {
+        this.database.query(queryParam, (err, rows) => {
+            if (err) {
+                console.error(err);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Internal Server Error' }));
+            } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, data: rows }));
+            }
+        });
+    }
+
 }
 
 // Create instances of Database and HTTPServer
