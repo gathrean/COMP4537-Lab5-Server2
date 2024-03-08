@@ -1,6 +1,8 @@
 const http = require('http');
 const url = require('url');
 const mysql = require('mysql');
+const {ServerError, InvalidBody, InvalidQuery, InvalidQueryType, notFound
+, insertSuccess, insertJSONError} = require('./lang/en')
 
 class Database {
     constructor(config) {
@@ -66,7 +68,7 @@ class DBResponder {
                 }
             } else {
                 res.writeHead(404);
-                res.end('Not Found');
+                res.end(notFound);
             }
         });
     }
@@ -102,11 +104,11 @@ class DBResponder {
 
                 console.log(`${jsonData.data.length} records inserted`);
                 res.writeHead(200, { 'Content-Type': 'text/plain' });
-                res.end('Insertion successful');
+                res.end(insertSuccess);
             } catch (error) {
                 console.error(error);
                 res.writeHead(400, { 'Content-Type': 'text/plain' });
-                res.end('Invalid JSON data');
+                res.end(insertJSONError);
             }
         });
     }
@@ -140,7 +142,7 @@ class DBResponder {
                 if (!query.startsWith("SELECT") && !query.startsWith("INSERT")) {
                     console.error("Invalid query type");
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ success: false, error: 'Only SELECT and INSERT queries are allowed' }));
+                    res.end(JSON.stringify({ success: false, error: InvalidQueryType }));
                     return;
                 }
 
@@ -148,7 +150,7 @@ class DBResponder {
                     if (err) {
                         console.error(err);
                         res.writeHead(500, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ success: false, error: 'Error executing query' }));
+                        res.end(JSON.stringify({ success: false, error: InvalidQuery}));
                     } else {
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ success: true, data: result }));
@@ -168,7 +170,7 @@ class DBResponder {
             if (err) {
                 console.error(err);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, error: 'Internal Server Error' }));
+                res.end(JSON.stringify({ success: false, error: ServerError }));
             } else {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true, data: rows }));
