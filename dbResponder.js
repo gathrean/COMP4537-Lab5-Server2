@@ -14,6 +14,9 @@ con.connect(function (err) {
     console.log("Connected to MySQL database");
 });
 
+/**
+ * Class for handling HTTP requests related to the database
+ */
 class DBResponder {
     constructor() {
         this.setupServer();
@@ -24,6 +27,7 @@ class DBResponder {
             const parsedUrl = url.parse(req.url, true);
             const path = parsedUrl.pathname;
 
+            // CORS headers
             res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5500');
             res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -31,12 +35,12 @@ class DBResponder {
 
             // Preflight request handling
             if (req.method === 'OPTIONS') {
-                res.writeHead(204);
+                res.writeHead(204); // No content
                 res.end();
                 return;
             }
 
-            // Routing
+            // Route requests
             if (path === '/insert' && req.method === 'POST') {
                 this.handleInsert(req, res);
             } else if (path === '/query' && req.method === 'GET') {
@@ -61,10 +65,19 @@ class DBResponder {
         });
 
         req.on('end', () => {
+
+            // Parse the JSON data
+            // If the data is not valid JSON, catch the error and return a 400 response
             try {
                 const jsonData = JSON.parse(data);
 
-                con.query('INSERT INTO patient(patientID, name, dateOfBirth) VALUES ?', [jsonData.data.map(patient => [patient.patientid, patient.name, patient.dateOfBirth])], function (err, result) {
+                // Prepare data for insertion
+                const insertionData = jsonData.data.map(patient => [patient.patientid, patient.name, patient.dateOfBirth]);
+            
+                // Use a prepared statement to prevent SQL injection
+                const query = 'INSERT INTO patient(patientID, name, dateOfBirth) VALUES ?';
+            
+                con.query(query, [insertionData], function (err, result) {
                     if (err) {
                         console.error(err);
                         res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -76,6 +89,7 @@ class DBResponder {
                     }
                 });
             } catch (error) {
+                // Handle JSON parsing error
                 console.error(error);
                 res.writeHead(400, { 'Content-Type': 'text/plain' });
                 res.end('Invalid JSON data');
