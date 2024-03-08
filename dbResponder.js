@@ -2,28 +2,44 @@ const http = require('http');
 const url = require('url');
 const mysql = require('mysql');
 
-const con = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "",
-    database: "lab5"
-});
+class Database {
+    constructor(config) {
+        this.connection = mysql.createConnection(config);
 
-con.connect(function (err) {
-    if (err) throw err;
-    console.log("Connected to MySQL database");
-});
+        this.connection.connect((err) => {
+            if (err) throw err;
+            console.log("Connected to MySQL database");
+        });
+    }
 
-/**
- * Class for handling HTTP requests related to the database
- */
+    query(sql, params, callback) {
+        this.connection.query(sql, params, callback);
+    }
+}
+
+class HTTPServer {
+    constructor(port) {
+        this.port = port;
+    }
+
+    startServer(requestHandler) {
+        const server = http.createServer(requestHandler);
+        server.listen(this.port, () => {
+            console.log(`Server listening at http://localhost:${this.port}`);
+        });
+    }
+}
+
 class DBResponder {
-    constructor() {
+    constructor(database, server) {
+        this.database = database;
+        this.server = server;
+
         this.setupServer();
     }
 
     setupServer() {
-        const server = http.createServer((req, res) => {
+        this.server.startServer((req, res) => {
             const parsedUrl = url.parse(req.url, true);
             const path = parsedUrl.pathname;
 
@@ -50,11 +66,6 @@ class DBResponder {
                 res.end('Not Found');
             }
         });
-
-        const port = 8008;
-        server.listen(port, () => {
-            console.log(`Server listening at http://localhost:${port}`);
-        });
     }
 
     handleInsert(req, res) {
@@ -65,19 +76,12 @@ class DBResponder {
         });
 
         req.on('end', () => {
-
-            // Parse the JSON data
-            // If the data is not valid JSON, catch the error and return a 400 response
             try {
                 const jsonData = JSON.parse(data);
-
-                // Prepare data for insertion
                 const insertionData = jsonData.data.map(patient => [patient.patientid, patient.name, patient.dateOfBirth]);
-            
-                // Use a prepared statement to prevent SQL injection
                 const query = 'INSERT INTO patient(patientID, name, dateOfBirth) VALUES ?';
-            
-                con.query(query, [insertionData], function (err, result) {
+
+                this.database.query(query, [insertionData], (err, result) => {
                     if (err) {
                         console.error(err);
                         res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -89,7 +93,6 @@ class DBResponder {
                     }
                 });
             } catch (error) {
-                // Handle JSON parsing error
                 console.error(error);
                 res.writeHead(400, { 'Content-Type': 'text/plain' });
                 res.end('Invalid JSON data');
@@ -100,7 +103,7 @@ class DBResponder {
     handleQuery(req, res, queryParam) {
         const query = queryParam;
 
-        con.query(query, (err, rows) => {
+        this.database.query(query, (err, rows) => {
             if (err) {
                 console.error(err);
                 res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -113,4 +116,15 @@ class DBResponder {
     }
 }
 
-new DBResponder();
+// Create instances of Database and HTTPServer
+const database = new Database({
+    host: "localhost",
+    user: "root",
+    password: "",
+    database: "lab5"
+});
+
+const server = new HTTPServer(8008);
+
+// Create an instance of DBResponder with the Database and HTTPServer instances
+new DBResponder(database, server);
