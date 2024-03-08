@@ -14,7 +14,7 @@ const con = mysql.createConnection({
 });
 
 // Connect to MySQL to run SQL query
-con.connect(function(err) {
+con.connect(function (err) {
     if (err) throw err;
     let sql = "INSERT INTO patient(patientID, name, dateOfBirth) VALUES (1, 'Elon Musk', '1901-01-01')"
     con.query(sql, function (err, result) {
@@ -71,17 +71,33 @@ class DBResponder {
     }
 
     handleInsert(req, res) {
-        const data = req.body.data;
+        let data = '';
 
-        this.db.serialize(() => {
-            const stmt = this.db.prepare('INSERT INTO users VALUES (?, ?)');
-            data.forEach(({ name, dob }) => {
-                stmt.run(name, dob);
-            });
-            stmt.finalize();
+        req.on('data', (chunk) => {
+            data += chunk;
         });
 
-        res.status(200).send('Insertion successful');
+        req.on('end', () => {
+            try {
+                const jsonData = JSON.parse(data);
+
+                con.query('INSERT INTO patient(patientID, name, dateOfBirth) VALUES ?', [jsonData.data.map(patient => [patient.patientid, patient.name, patient.dateOfBirth])], function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        res.writeHead(500, { 'Content-Type': 'text/plain' });
+                        res.end('Internal Server Error');
+                    } else {
+                        console.log(`${result.affectedRows} records inserted`);
+                        res.writeHead(200, { 'Content-Type': 'text/plain' });
+                        res.end('Insertion successful');
+                    }
+                });
+            } catch (error) {
+                console.error(error);
+                res.writeHead(400, { 'Content-Type': 'text/plain' });
+                res.end('Invalid JSON data');
+            }
+        });
     }
 
     handleQuery(req, res) {
