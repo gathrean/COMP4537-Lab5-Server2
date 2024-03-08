@@ -68,35 +68,56 @@ class DBResponder {
         });
     }
 
-    handleInsert(req, res) {
+    async handleInsert(req, res) {
         let data = '';
 
         req.on('data', (chunk) => {
             data += chunk;
         });
 
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 const jsonData = JSON.parse(data);
-                const insertionData = jsonData.data.map(patient => [patient.patientid, patient.name, patient.dateOfBirth]);
-                const query = 'INSERT INTO patient(patientID, name, dateOfBirth) VALUES ?';
 
-                this.database.query(query, [insertionData], (err, result) => {
-                    if (err) {
-                        console.error(err);
-                        res.writeHead(500, { 'Content-Type': 'text/plain' });
-                        res.end('Internal Server Error');
-                    } else {
-                        console.log(`${result.affectedRows} records inserted`);
-                        res.writeHead(200, { 'Content-Type': 'text/plain' });
-                        res.end('Insertion successful');
-                    }
-                });
+                // Fetch the current maximum patientid from the database
+                const getMaxPatientIdQuery = 'SELECT MAX(patientID) AS maxPatientId FROM patient';
+                const maxPatientIdResult = await this.queryAsync(getMaxPatientIdQuery);
+
+                let nextPatientId = 1;
+
+                if (maxPatientIdResult.length > 0 && maxPatientIdResult[0].maxPatientId !== null) {
+                    nextPatientId = maxPatientIdResult[0].maxPatientId + 1;
+                }
+
+                // Prepare data for insertion
+                const insertionData = jsonData.data.map(patient => [nextPatientId++, patient.name, patient.dateOfBirth]);
+
+                const insertQuery = 'INSERT INTO patient(patientID, name, dateOfBirth) VALUES ?';
+
+                // Perform the actual insertion
+                await this.queryAsync(insertQuery, [insertionData]);
+
+                console.log(`${jsonData.data.length} records inserted`);
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end('Insertion successful');
             } catch (error) {
                 console.error(error);
                 res.writeHead(400, { 'Content-Type': 'text/plain' });
                 res.end('Invalid JSON data');
             }
+        });
+    }
+
+    // Add an asynchronous query method to handle database queries with promises
+    queryAsync(sql, params) {
+        return new Promise((resolve, reject) => {
+            this.database.query(sql, params, (err, result) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(result);
+                }
+            });
         });
     }
 
