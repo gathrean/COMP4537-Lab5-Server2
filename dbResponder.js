@@ -16,7 +16,7 @@ const con = mysql.createConnection({
 // Connect to MySQL to run SQL query
 con.connect(function(err) {
     if (err) throw err;
-    let sql = "INSERT INTO patient(name, dateOfBirth) VALUES ('Elon Musk', '1901-01-01')"
+    let sql = "INSERT INTO patient(patientID, name, dateOfBirth) VALUES (1, 'Elon Musk', '1901-01-01')"
     con.query(sql, function (err, result) {
         if (err) throw err;
         console.log("1 record inserted");
