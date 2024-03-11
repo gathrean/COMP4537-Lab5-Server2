@@ -1,3 +1,9 @@
+// 
+// 
+// This code has been assisted by ChatGPT
+//
+//
+
 require('dotenv').config({ path: './.env' });
 
 const http = require('http');
