@@ -1,6 +1,6 @@
 // 
 // 
-// This code has been assisted by ChatGPT
+// ChatGPT was used to code solutions presented in this assignment
 //
 //
 
