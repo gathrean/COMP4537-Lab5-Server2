@@ -1,10 +1,11 @@
-require('dotenv').config();
+require('dotenv').config({ path: './.env' });
 
 const http = require('http');
 const url = require('url');
-const mysql = require('mysql');
+const mysql = require('mysql2');
 const { ServerError, InvalidBody, InvalidQuery, InvalidQueryType, notFound
     , insertSuccess, insertJSONError } = require('./lang/en')
+const {readFileSync} = require("fs");
 
 class Database {
     constructor(config) {
@@ -50,7 +51,7 @@ class DBResponder {
             const path = parsedUrl.pathname;
 
             // CORS headers
-            res.setHeader('Access-Control-Allow-Origin', 'https://comp4537-lab5-server1.netlify.app');
+            res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
             res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -89,7 +90,7 @@ class DBResponder {
                 const jsonData = JSON.parse(data);
 
                 // Fetch the current maximum patientid from the database
-                const getMaxPatientIdQuery = 'SELECT MAX(patientID) AS maxPatientId FROM patient';
+                const getMaxPatientIdQuery = 'SELECT MAX(patientID) AS maxPatientId FROM PATIENT';
                 const maxPatientIdResult = await this.queryAsync(getMaxPatientIdQuery);
 
                 let nextPatientId = 1;
@@ -101,7 +102,7 @@ class DBResponder {
                 // Prepare data for insertion
                 const insertionData = jsonData.data.map(patient => [nextPatientId++, patient.name, patient.dateOfBirth]);
 
-                const insertQuery = 'INSERT INTO patient(patientID, name, dateOfBirth) VALUES ?';
+                const insertQuery = 'INSERT INTO PATIENT(patientID, name, dateOfBirth) VALUES ?';
 
                 // Perform the actual insertion
                 await this.queryAsync(insertQuery, [insertionData]);
@@ -130,7 +131,7 @@ class DBResponder {
         });
     }
 
-    handlePostQuery(req, res) {
+    async handlePostQuery(req, res) {
         let body = '';
 
         req.on('data', chunk => {
@@ -141,6 +142,7 @@ class DBResponder {
             try {
                 const data = JSON.parse(body);
                 const query = data.query.trim().toUpperCase(); // Normalize the query
+                console.log(query);
 
                 // Validate the query type for SELECT and INSERT
                 if (!query.startsWith("SELECT") && !query.startsWith("INSERT")) {
@@ -150,15 +152,14 @@ class DBResponder {
                     return;
                 }
 
-                this.database.query(query, (err, result) => {
-                    if (err) {
-                        console.error(err);
-                        res.writeHead(500, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ success: false, error: InvalidQuery }));
-                    } else {
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ success: true, data: result }));
-                    }
+                // Use queryAsync for database operation
+                this.queryAsync(query).then(result => {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, data: result }));
+                }).catch(err => {
+                    console.error(err);
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: InvalidQuery }));
                 });
             } catch (error) {
                 console.error(error);
@@ -169,16 +170,15 @@ class DBResponder {
     }
 
 
-    handleQuery(req, res, queryParam) {
-        this.database.query(queryParam, (err, rows) => {
-            if (err) {
-                console.error(err);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, error: ServerError }));
-            } else {
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, data: rows }));
-            }
+    async handleQuery(req, res, queryParam) {
+        // Use queryAsync for database operation
+        this.queryAsync(queryParam).then(rows => {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, data: rows }));
+        }).catch(err => {
+            console.error(err);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: ServerError }));
         });
     }
 
@@ -186,12 +186,14 @@ class DBResponder {
 
 // Create instances of Database and HTTPServer
 const database = new Database({
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    database: process.env.DB_DATABASE,
-    sslmode: process.env.DB_SSLMODE,
+    user: process.env.NAME,
+    password: process.env.PASSWORD,
+    host: process.env.HOST,
+    port: process.env.PORT,
+    database: process.env.DATABASE,
+    ssl: {
+        ca: readFileSync("C:\\Users\\chris\\Downloads\\ca-certificate.crt")
+    }
 });
 
 const server = new HTTPServer(8008);
