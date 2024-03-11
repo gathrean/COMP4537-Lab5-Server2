@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const http = require('http');
 const url = require('url');
 const mysql = require('mysql');
@@ -12,6 +14,8 @@ class Database {
             if (err) throw err;
             console.log("Connected to MySQL database");
         });
+
+        this.connection.query(`USE lab5`);
     }
 
     query(sql, params, callback) {
