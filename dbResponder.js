@@ -50,7 +50,6 @@ class DBResponder {
             const parsedUrl = url.parse(req.url, true);
             const path = parsedUrl.pathname;
 
-            // CORS headers
             res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -192,7 +191,7 @@ const database = new Database({
     port: process.env.PORT,
     database: process.env.DATABASE,
     ssl: {
-        ca: readFileSync("C:\\Users\\chris\\Downloads\\ca-certificate.crt")
+        ca: readFileSync("./ca-certificate.crt"),
     }
 });
 
