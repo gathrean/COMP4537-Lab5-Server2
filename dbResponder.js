@@ -46,7 +46,7 @@ class DBResponder {
             const path = parsedUrl.pathname;
 
             // CORS headers
-            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Origin', 'https://comp4537-lab5-server1.netlify.app');
             res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
             res.setHeader('Access-Control-Allow-Credentials', 'true');
