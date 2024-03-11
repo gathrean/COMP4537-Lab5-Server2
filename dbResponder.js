@@ -1,8 +1,8 @@
 const http = require('http');
 const url = require('url');
 const mysql = require('mysql');
-const {ServerError, InvalidBody, InvalidQuery, InvalidQueryType, notFound
-, insertSuccess, insertJSONError} = require('./lang/en')
+const { ServerError, InvalidBody, InvalidQuery, InvalidQueryType, notFound
+    , insertSuccess, insertJSONError } = require('./lang/en')
 
 class Database {
     constructor(config) {
@@ -150,7 +150,7 @@ class DBResponder {
                     if (err) {
                         console.error(err);
                         res.writeHead(500, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ success: false, error: InvalidQuery}));
+                        res.end(JSON.stringify({ success: false, error: InvalidQuery }));
                     } else {
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ success: true, data: result }));
@@ -182,10 +182,12 @@ class DBResponder {
 
 // Create instances of Database and HTTPServer
 const database = new Database({
-    host: "localhost",
-    user: "root",
-    password: "",
-    database: "lab5"
+    username: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    database: process.env.DB_DATABASE,
+    sslmode: process.env.DB_SSLMODE,
 });
 
 const server = new HTTPServer(8008);
